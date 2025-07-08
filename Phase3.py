@@ -318,9 +318,13 @@ if __name__ == "__main__":
                     else:
                         print(f"    Failed to scrape details for book: {book_url}")
 
-        # Step 4: Export all collected data to a single CSV
-        if all_scraped_books_data:
-            print(f"\n--- Scraping complete. Total books scraped: {len(all_scraped_books_data)} ---")
-            export_to_csv_simple(all_scraped_books_data, output_csv_filename)
-        else:
-            print("\nNo book details were successfully scraped across all categories. No CSV will be created.")
+
+
+            # Step 4: Export all collected data for the current category to its own CSV
+            if books_in_current_category:
+                print(f"  Successfully scraped details for {len(books_in_current_category)} books in '{category_name}'.")
+                export_books_to_csv(books_in_current_category, category_name)
+            else:
+                print(f"  No book details were successfully scraped for category '{category_name}'. No CSV will be created for this category.")
+
+        print(f"\n--- Full site scraping complete. Total books scraped across all categories: {total_books_scraped} ---")
