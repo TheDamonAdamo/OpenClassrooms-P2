@@ -385,6 +385,12 @@ if __name__ == "__main__":
                     if book_details:
                         books_in_current_category.append(book_details)
                         total_books_scraped += 1
+                        #Download images function call
+                        download_image(
+                            book_details.get('image_url'),
+                            book_details.get('category'),  # Use category from scraped data
+                            book_details.get('book_title')  # Use book title for filename
+                        )
                     else:
                         print(f"    Failed to scrape details for book: {book_url}")
 
