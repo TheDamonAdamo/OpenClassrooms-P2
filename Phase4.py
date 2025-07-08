@@ -280,6 +280,18 @@ def get_all_book_links_in_category(category_base_url):
 
     return all_book_links
 
+def sanitize_filename(name):
+    """
+    Sanitizes a string to be used as a filename or folder name.
+    Removes invalid characters and replaces spaces with underscores.
+    """
+    # Replace invalid characters (not alphanumeric, underscore, hyphen, or dot) with empty string
+    sanitized = re.sub(r'[^\w\s.-]', '', name).strip()
+    # Replace spaces and multiple underscores with a single underscore
+    sanitized = re.sub(r'\s+', '_', sanitized)
+    sanitized = re.sub(r'_+', '_', sanitized) # Handle multiple spaces becoming multiple underscores
+    return sanitized
+
 if __name__ == "__main__":
     main_site_url = "https://books.toscrape.com/index.html"
     total_books_scraped = 0
