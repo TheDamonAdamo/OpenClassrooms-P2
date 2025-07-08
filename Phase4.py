@@ -292,6 +292,64 @@ def sanitize_filename(name):
     sanitized = re.sub(r'_+', '_', sanitized) # Handle multiple spaces becoming multiple underscores
     return sanitized
 
+def download_image(image_url, category_name, book_title, base_folder="images"):
+    """
+    Downloads an image from a URL into a category-specific subfolder.
+
+    Args:
+        image_url (str): The URL of the image to download.
+        category_name (str): The name of the category for folder creation.
+        book_title (str): The title of the book for the image filename.
+        base_folder (str): The root folder for all images (e.g., "images").
+    """
+    if not image_url:
+        # print(f"    Skipping image download: No image URL provided for book '{book_title}'.")
+        return
+
+    # Sanitize category name and book title for safe folder/file names
+    sanitized_cat_name = sanitize_filename(category_name)
+    sanitized_book_title = sanitize_filename(book_title)
+
+    # Construct the path for the category subfolder
+    category_folder_path = os.path.join(base_folder, sanitized_cat_name)
+
+    # Create the directory if it doesn't exist. exist_ok=True prevents error if it already exists.
+    try:
+        os.makedirs(category_folder_path, exist_ok=True)
+    except OSError as e:
+        print(f"    Error creating directory {category_folder_path}: {e}")
+        return
+
+    # Determine file extension from URL. If not found, default to .jpg.
+    file_extension = os.path.splitext(image_url)[1]
+    if not file_extension or len(file_extension) > 5: # Basic check for valid extension length
+        file_extension = '.jpg' # Fallback to a common image extension
+
+    # Construct the full path for saving the image
+    image_filename = f"{sanitized_book_title}{file_extension}"
+    image_path = os.path.join(category_folder_path, image_filename)
+
+    # Check if the file already exists to avoid re-downloading
+    if os.path.exists(image_path):
+        # print(f"    Image already exists: {image_path}. Skipping download.")
+        return
+
+    try:
+        # Send a GET request to download the image content
+        img_data = requests.get(image_url, stream=True)
+        img_data.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
+
+        # Write the image content to the file in chunks
+        with open(image_path, 'wb') as handler:
+            for chunk in img_data.iter_content(chunk_size=8192):
+                handler.write(chunk)
+        # print(f"    Downloaded image for '{book_title}' to: {image_path}")
+    except requests.exceptions.RequestException as e:
+        print(f"    Error downloading image from {image_url} for '{book_title}': {e}")
+    except Exception as e:
+        print(f"    An unexpected error occurred while saving image for '{book_title}': {e}")
+
+
 if __name__ == "__main__":
     main_site_url = "https://books.toscrape.com/index.html"
     total_books_scraped = 0
