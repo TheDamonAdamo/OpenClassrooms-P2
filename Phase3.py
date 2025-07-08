@@ -131,14 +131,15 @@ def scrape_book_details_simple(url):
         print(f"An unexpected error occurred during scraping: {e}")
         return None
 
-def export_to_csv_simple(data, filename="book_details.csv"):
+def export_books_to_csv(data, category_name, base_filename="books_details.csv"):
     """
     Exports a list of dictionaries (book data) to a CSV file.
 
     Args:
         data (list of dict): A list containing dictionaries, where each dictionary
                              represents one book's data.
-        filename (str): The name of the CSV file to create or append to.
+        category_name (str): The name of the category, used for the filename.
+        base_filename (str): The base name for the CSV file (e.g., "books_details.csv").
     """
     # Define the headers in the order requested for the CSV file
     csv_headers = [
@@ -153,6 +154,11 @@ def export_to_csv_simple(data, filename="book_details.csv"):
         'review_rating',
         'image_url'
     ]
+
+    # Sanitize category name to create a valid filename
+    # Replace spaces with underscores, remove characters that are not alphanumeric, underscore, or hyphen
+    clean_category_name = re.sub(r'[^\w-]', '', category_name.replace(' ', '_'))
+    filename = f"{clean_category_name}_{base_filename}"
 
     # Check if the file already exists. If not, or if it's empty, we need to write the header row.
     file_exists = os.path.exists(filename)
