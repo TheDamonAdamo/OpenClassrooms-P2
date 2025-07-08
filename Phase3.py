@@ -184,97 +184,145 @@ def export_books_to_csv(data, category_name, base_filename="books_details.csv"):
     except IOError as e:
         print(f"Error writing to CSV file {filename}: {e}")
 
-def get_book_links_from_category_page(category_url):
+def get_all_categories_with_links(main_url="https://books.toscrape.com/index.html"):
     """
-    Scrapes all individual book detail page links from a given category page.
+    Scrapes all category names and their corresponding absolute links from the main page.
 
     Args:
-        category_url (str): The URL of the category page.
+        main_url (str): The URL of the main page (default is https://books.toscrape.com/index.html).
 
     Returns:
-        list: A list of absolute URLs for each book on the page.
-              Returns an empty list if no links are found or an error occurs.
+        list: A list of dictionaries, where each dictionary contains 'name'
+              and 'url' for each scraped category.
+              Returns an empty list if no categories are found or an error occurs.
     """
-    book_links = []
+    categories = []
     try:
-        response = requests.get(category_url)
+        response = requests.get(main_url)
         response.raise_for_status()
         response.encoding = 'utf-8'
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Find the main content section where books are listed
-        # Books are typically within <article class="product_pod"> inside a <section>
-        products_section = soup.find('section')
-        if products_section:
-            # Find all book containers (articles)
-            book_containers = products_section.find_all('article', class_='product_pod')
-            for container in book_containers:
-                # Find the <a> tag that links to the book's detail page in the <h3> tag
-                link_tag = container.find('h3').find('a')
-                if link_tag and 'href' in link_tag.attrs:
-                    relative_link = link_tag['href']
-                    # Construct the absolute URL using urljoin
-                    absolute_link = urljoin(category_url, relative_link)
-                    book_links.append(absolute_link)
-        return book_links
-
+        side_categories_div = soup.find('div', class_='side_categories')
+        if side_categories_div:
+            nav_list_ul = side_categories_div.find('ul', class_='nav nav-list')
+            if nav_list_ul:
+                nested_ul = nav_list_ul.find('ul') # This targets the ul with actual categories
+                if nested_ul:
+                    category_links = nested_ul.find_all('a')
+                    for link_tag in category_links:
+                        category_name = link_tag.get_text(strip=True)
+                        relative_url = link_tag['href']
+                        # Construct the absolute URL using urljoin
+                        absolute_url = urljoin(main_url, relative_url)
+                        categories.append({'name': category_name, 'url': absolute_url})
+        return categories
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching category page {category_url}: {e}")
+        print(f"Error fetching categories from {main_url}: {e}")
         return []
     except Exception as e:
-        print(f"An error occurred while getting book links: {e}")
+        print(f"An error occurred during category link scraping: {e}")
         return []
 
-# Single Book Code
-# if __name__ == "__main__":
-    # The URL of the book page we want to scrape
-    #book_page_url = "https://books.toscrape.com/catalogue/soumission_998/index.html"
+def get_all_book_links_in_category(category_base_url):
+    """
+    Scrapes all individual book detail page links from a given category,
+    handling pagination.
 
-    #print(f"Attempting to scrape: {book_page_url}")
-    # Call the scraping function
-    #scraped_book_info = scrape_book_details_simple(book_page_url)
+    Args:
+        category_base_url (str): The base URL of the category page (e.g., .../travel_2/index.html).
 
-    #if scraped_book_info:
-    #    print("\nSuccessfully scraped book details:")
-    #    for key, value in scraped_book_info.items():
-    #        print(f"  {key.replace('_', ' ').title()}: {value}")
+    Returns:
+        list: A list of absolute URLs for each book found in the category.
+    """
+    all_book_links = []
+    current_page_url = category_base_url
+    page_num = 1
 
-        # Export the scraped data to a CSV file
-        # The export_to_csv_simple function expects a list of dictionaries,
-        # so we put our single book_data dictionary into a list.
-        #export_to_csv_simple([scraped_book_info], "book_details.csv")
-    #else:
-    #    print("Failed to scrape book details. No data will be exported.")
+    while True:
+        print(f"  Scraping book links from category page {page_num}: {current_page_url}")
+        try:
+            response = requests.get(current_page_url)
+            response.raise_for_status()
+            response.encoding = 'utf-8'
+            soup = BeautifulSoup(response.text, 'html.parser')
 
+            # Find the main content section where books are listed
+            products_section = soup.find('section')
+            if products_section:
+                book_containers = products_section.find_all('article', class_='product_pod')
+                for container in book_containers:
+                    link_tag = container.find('h3').find('a')
+                    if link_tag and 'href' in link_tag.attrs:
+                        relative_link = link_tag['href']
+                        # Book links are relative to the 'catalogue' directory, not the current page directly.
+                        # urljoin handles this correctly by resolving against the base of the category URL.
+                        absolute_link = urljoin(current_page_url, relative_link)
+                        all_book_links.append(absolute_link)
 
-
-
-# --- Main part of the script to run the scraping and export ---
-if __name__ == "__main__":
-    category_page_url = "https://books.toscrape.com/catalogue/category/books/travel_2/index.html"
-    output_csv_filename = "travel_books_details.csv"
-
-    print(f"Starting to scrape book links from category page: {category_page_url}")
-    book_urls = get_book_links_from_category_page(category_page_url)
-
-    if not book_urls:
-        print("No book links found on the category page or an error occurred. Exiting.")
-    else:
-        print(f"Found {len(book_urls)} book links. Now scraping details for each...")
-        all_scraped_books_data = []
-        for i, book_url in enumerate(book_urls):
-            print(f"Scraping book {i+1}/{len(book_urls)}: {book_url}")
-            book_details = scrape_book_details_simple(book_url)
-            if book_details:
-                all_scraped_books_data.append(book_details)
+            # Check for a "next" pagination link
+            next_button = soup.find('li', class_='next')
+            if next_button:
+                next_page_relative_link = next_button.find('a')['href']
+                # Construct the next page URL relative to the current category page URL
+                current_page_url = urljoin(current_page_url, next_page_relative_link)
+                page_num += 1
             else:
-                print(f"  Failed to scrape details for: {book_url}")
+                # No "next" button found, so we're on the last page
+                break
 
-        if all_scraped_books_data:
-            print(f"\nSuccessfully scraped details for {len(all_scraped_books_data)} books.")
-            # Export all collected book data to a single CSV file
-            export_to_csv_simple(all_scraped_books_data, output_csv_filename)
-        else:
-            print("No book details were successfully scraped. No CSV will be created.")
+        except requests.exceptions.RequestException as e:
+            print(f"  Error fetching category page {current_page_url}: {e}")
+            break # Stop if we encounter an error
+        except Exception as e:
+            print(f"  An error occurred while getting book links from {current_page_url}: {e}")
+            break # Stop if an unexpected error occurs
 
+    return all_book_links
 
+if __name__ == "__main__":
+    main_site_url = "https://books.toscrape.com/index.html"
+    total_books_scraped = 0
+
+    print(f"--- Starting full site scrape from: {main_site_url} ---")
+
+    # Step 1: Get all categories and their links
+    print("\nStep 1: Scraping all categories and their links...")
+    categories_with_links = get_all_categories_with_links(main_site_url)
+
+    if not categories_with_links:
+        print("No categories found. Exiting.")
+    else:
+        print(f"Found {len(categories_with_links)} categories.")
+        # Step 2 & 3: Iterate through each category, get book links, and scrape details
+        for i, category_info in enumerate(categories_with_links):
+            category_name = category_info['name']
+            category_url = category_info['url']
+            print(f"\nProcessing category {i+1}/{len(categories_with_links)}: '{category_name}' ({category_url})")
+
+            # List to hold books for the current category
+            books_in_current_category = []
+
+            book_urls_in_category = get_all_book_links_in_category(category_url)
+
+            if not book_urls_in_category:
+                print(f"  No books found in category '{category_name}'.")
+            else:
+                print(f"  Found {len(book_urls_in_category)} books in '{category_name}'. Scraping details...")
+                for j, book_url in enumerate(book_urls_in_category):
+                    # print(f"    Scraping book {j+1}/{len(book_urls_in_category)}: {book_url}")
+                    book_details = scrape_book_details_simple(book_url)
+                    if book_details:
+                        books_in_current_category.append(book_details)
+                        total_books_scraped += 1
+                    else:
+                        print(f"    Failed to scrape details for book: {book_url}")
+
+            # Step 4: Export all collected data for the current category to its own CSV
+            if books_in_current_category:
+                print(f"  Successfully scraped details for {len(books_in_current_category)} books in '{category_name}'.")
+                export_books_to_csv(books_in_current_category, category_name)
+            else:
+                print(f"  No book details were successfully scraped for category '{category_name}'. No CSV will be created for this category.")
+
+        print(f"\n--- Full site scraping complete. Total books scraped across all categories: {total_books_scraped} ---")
