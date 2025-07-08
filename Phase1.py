@@ -63,7 +63,7 @@ def scrape_book_details_simple(url):
                 # elif header == 'Availability':
                 #    book_data['price_excluding_tax'] = value
 
-                    # Quantity Available (from the 'instock availability' paragraph)
+                # Quantity Available (from the 'instock availability' paragraph)
         availability_tag = soup.find('p', class_='instock availability')
         if availability_tag:
             stock_text = availability_tag.get_text(strip=True)
@@ -131,6 +131,52 @@ def scrape_book_details_simple(url):
     except Exception as e:
         print(f"An unexpected error occurred during scraping: {e}")
         return None
+def export_to_csv_simple(data, filename="book_details.csv"):
+    """
+    Exports a list of dictionaries (book data) to a CSV file.
+
+    Args:
+        data (list of dict): A list containing dictionaries, where each dictionary
+                             represents one book's data.
+        filename (str): The name of the CSV file to create or append to.
+    """
+    # Define the headers in the order requested for the CSV file
+    csv_headers = [
+        'product_page_url',
+        'universal_product_code',
+        'book_title',
+        'price_including_tax',
+        'price_excluding_tax',
+        'quantity_available',
+        'product_description',
+        'category',
+        'review_rating',
+        'image_url'
+    ]
+
+    # Check if the file already exists. If not, or if it's empty, we need to write the header row.
+    file_exists = os.path.exists(filename)
+    # os.stat(filename).st_size == 0 checks if the file is empty
+    write_header = not file_exists or os.stat(filename).st_size == 0
+
+    try:
+        # Open the CSV file in append mode ('a').
+        # 'newline=''' prevents extra blank rows in the CSV.
+        # 'encoding='utf-8''
+        with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+            # Create a DictWriter object, which maps dictionaries to CSV rows
+            writer = csv.DictWriter(csvfile, fieldnames=csv_headers)
+
+            # Write the header row if it's a new file or an empty existing file
+            if write_header:
+                writer.writeheader()
+
+            # Write each book's data row
+            for row_data in data:
+                writer.writerow(row_data)
+        print(f"Data successfully exported to {filename}")
+    except IOError as e:
+        print(f"Error writing to CSV file {filename}: {e}")
 
 # --- Main part of the script to run the scraping and export ---
 if __name__ == "__main__":
@@ -146,6 +192,9 @@ if __name__ == "__main__":
         for key, value in scraped_book_info.items():
             print(f"  {key.replace('_', ' ').title()}: {value}")
 
-
+        # Export the scraped data to a CSV file
+        # The export_to_csv_simple function expects a list of dictionaries,
+        # so we put our single book_data dictionary into a list.
+        export_to_csv_simple([scraped_book_info], "book_details.csv")
     else:
-        print("Failed to scrape book details.")
+        print("Failed to scrape book details. No data will be exported.")
