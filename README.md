@@ -1,4 +1,20 @@
 # OpenClassrooms-P2
+
+Instructions:
+1. Clone the repository from https://github.com/TheDamonAdamo/OpenClassrooms-P2
+using git clone https://github.com/TheDamonAdamo/OpenClassrooms-P2.git either in your IDE or terminal
+
+2. Set up a virtual environment using the terminal command python -m venv env
+
+3. Install the required packages from requirements.txt using pip install -r requirements.txt 
+
+4. Run each of the python scripts example for Phase1.py >>> python Phase1.py 
+
+5. Examine the output files
+
+
+Assignment Requirements:
+
 Books Online Price Monitoring System
 
 Books Online 
